@@ -1,9 +1,32 @@
 import React, { Component } from "react";
-import { getMovies, deleteMovie } from "../services/fakeMovieService";
+import MoviesTable from "./moviesTable";
+import Pagination from "./common/pagination";
+import ListGroup from "./common/listGroup";
+import { Link } from "react-router-dom";
 
+import { paginate } from "../utils/paginate";
+
+import {
+  getMovies,
+  deleteMovie,
+  likeMovie,
+} from "../services/fakeMovieService";
+import { getGenres } from "../services/fakeGenreService";
+import _, { filter } from "lodash";
+import SearchBox from "../components/common/searchbox";
 class Movies extends Component {
   state = {
-    movies: getMovies(),
+    movies: [],
+    genres: [],
+    currentPage: 1,
+    pageSize: 4,
+    selectedGenre: null,
+    searchQuery: "",
+    sortColumn: { path: "title", order: "asc" },
+  };
+  componentDidMount = () => {
+    const genres = [{ _id: "", name: "All Genres" }, ...getGenres()];
+    this.setState({ movies: getMovies(), genres });
   };
   tablestyles = {
     borderCollapse: "collapse",
@@ -16,51 +39,105 @@ class Movies extends Component {
   constructor() {
     super();
     this.delMovie = this.delMovie.bind(this);
+    this.likeMovie = this.likeMovie.bind(this);
   }
+
   delMovie = (id) => {
-    console.log(id);
     this.setState({ movie: deleteMovie(id) });
   };
 
+  likeMovie = (id) => {
+    this.setState({ movie: likeMovie(id) });
+  };
+
+  handlePageChange = (page) => {
+    this.setState({ currentPage: page });
+  };
+  handleGenreSelect = (genre) => {
+    this.setState({ selectedGenre: genre, filter: "", currentPage: 1 });
+  };
+
+  handleFilter = (searchQuery) => {
+    this.setState({ selectedGenre: "", searchQuery: searchQuery, currentPage: 1 });
+  };
+
+  sort = (sortColumn) => {
+    this.setState({ sortColumn });
+  };
+  handleClick = () => {
+    console.log("text");
+  };
+  getPagedData = () => {
+    const {
+      pageSize,
+      currentPage,
+      sortColumn,
+      selectedGenre,
+      searchQuery,
+      movies: allMovies,
+    } = this.state;
+
+    let filtered = allMovies;
+    if (searchQuery) {
+      filtered = allMovies.filter((m) =>
+        String(m.title.toLowerCase()).startsWith(searchQuery.toLowerCase())
+      );
+    } else if (selectedGenre && selectedGenre._id)
+      filtered = allMovies.filter((m) => m.genre._id === selectedGenre._id);
+
+    const sorted = _.orderBy(filtered, [sortColumn.path], [sortColumn.order]);
+    const movies = paginate(sorted, currentPage, pageSize);
+
+    return { totalCount: filtered.length, data: movies };
+  };
   render() {
-    if (this.state.movies.length === 0) return <div>No Movies in Database</div>;
+    const { length: count } = this.state.movies;
+    const { pageSize, currentPage, sortColumn } = this.state;
 
+    if (count === 0) return <div>No Movies in Database</div>;
+
+    const { totalCount, data: movies } = this.getPagedData();
     return (
-      <div>
-        <h1>Showing {this.state.movies.length} Movies From the Database</h1>
+      <div className="row">
+        <div className="col-3">
+          <ListGroup
+            items={this.state.genres}
+            selectedItem={this.state.selectedGenre}
+            onItemSelect={this.handleGenreSelect}
+          />
+        </div>
+        <div className="col">
+          <Link to="/movies/new">
+            <button
+              className="btn btn-primary"
+              type="button"
+              style={{ marginBottom: 20 }}
+            >
+              New Movie{" "}
+            </button>
+          </Link>
 
-        <table style={this.tablestyles}>
-          <tbody>
-            <tr style={this.tabledata}>
-              <th>Title</th>
-              <th>Genre</th>
-              <th>Stock</th>
-              <th>Rate</th>
-              <th></th>
-            </tr>
-          </tbody>
+          <h5>Showing {totalCount} Movies From the Database</h5>
+          <SearchBox
+            value={this.state.searchQuery}
+            onChange={this.handleFilter}
+          />
 
-          <tbody>
-            {this.state.movies.map((movies) => (
-              <tr key={movies._id} style={this.tabledata}>
-                <td key={movies.title}>{movies.title} </td>
-                <td key={movies.genre.name}>{movies.genre.name} </td>
-                <td key={movies.numberInStock}>{movies.numberInStock} </td>
-                <td key={movies.dailyRentalRate}>{movies.dailyRentalRate} </td>
-                <td>
-                  <button
-                    onClick={() => {
-                      this.delMovie(movies._id);
-                    }}
-                    className="btn btn-danger"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          <MoviesTable
+            movies={movies}
+            sortColumn={sortColumn}
+            onLike={this.likeMovie}
+            onDelete={this.delMovie}
+            onSort={this.sort}
+            onItemSelect={this.handleGenreSelect}
+          />
+          <Pagination
+            itemsCount={totalCount}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            onPageChange={this.handlePageChange}
+          />
+        </div>
       </div>
     );
   }
