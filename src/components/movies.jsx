@@ -3,16 +3,13 @@ import MoviesTable from "./moviesTable";
 import Pagination from "./common/pagination";
 import ListGroup from "./common/listGroup";
 import { Link } from "react-router-dom";
+import { toast } from "react-toastify";
 
 import { paginate } from "../utils/paginate";
 
-import {
-  getMovies,
-  deleteMovie,
-  likeMovie,
-} from "../services/fakeMovieService";
-import { getGenres } from "../services/fakeGenreService";
-import _, { filter } from "lodash";
+import { getMovies, deleteMovie } from "../services/movieService";
+import { getGenres } from "../services/genreService";
+import _ from "lodash";
 import SearchBox from "../components/common/searchbox";
 class Movies extends Component {
   state = {
@@ -24,10 +21,14 @@ class Movies extends Component {
     searchQuery: "",
     sortColumn: { path: "title", order: "asc" },
   };
-  componentDidMount = () => {
-    const genres = [{ _id: "", name: "All Genres" }, ...getGenres()];
-    this.setState({ movies: getMovies(), genres });
-  };
+  async componentDidMount() {
+    const { data } = await getGenres();
+    const genres = [{ _id: "", name: "All Genres" }, ...data];
+
+    const { data: movies } = await getMovies();
+
+    this.setState({ movies, genres });
+  }
   tablestyles = {
     borderCollapse: "collapse",
     width: "100%",
@@ -38,16 +39,36 @@ class Movies extends Component {
   };
   constructor() {
     super();
-    this.delMovie = this.delMovie.bind(this);
-    this.likeMovie = this.likeMovie.bind(this);
+    this.handleLike = this.handleLike.bind(this);
+    this.handleDelete = this.handleDelete.bind(this);
   }
 
-  delMovie = (id) => {
-    this.setState({ movie: deleteMovie(id) });
-  };
+  handleDelete = async (movie) => {
+    const originalMovies = this.state.movies;
 
-  likeMovie = (id) => {
-    this.setState({ movie: likeMovie(id) });
+    const movies = originalMovies.filter((m) => m._id !== movie._id);
+    this.setState({ movies });
+    try {
+      await deleteMovie(movie._id);
+    } catch (ex) {
+      console.log(ex);
+      toast.error("Error");
+
+      if (ex.repsonse && ex.repsonse.status === 404) {
+        toast.error("This Movie has been already deleted");
+      }
+      this.setState({ movies: originalMovies });
+    }
+  };
+  handleLike = (movie) => {
+    const likedMovies = [...this.state.movies];
+
+    for (let i = 0; i < likedMovies.length; i++) {
+      if (likedMovies[i]._id === movie._id) {
+        likedMovies[i].like = !likedMovies[i].like;
+      }
+    }
+    this.setState({ movies: likedMovies });
   };
 
   handlePageChange = (page) => {
@@ -58,7 +79,11 @@ class Movies extends Component {
   };
 
   handleFilter = (searchQuery) => {
-    this.setState({ selectedGenre: "", searchQuery: searchQuery, currentPage: 1 });
+    this.setState({
+      selectedGenre: "",
+      searchQuery: searchQuery,
+      currentPage: 1,
+    });
   };
 
   sort = (sortColumn) => {
@@ -126,8 +151,8 @@ class Movies extends Component {
           <MoviesTable
             movies={movies}
             sortColumn={sortColumn}
-            onLike={this.likeMovie}
-            onDelete={this.delMovie}
+            onLike={this.handleLike}
+            onDelete={this.handleDelete}
             onSort={this.sort}
             onItemSelect={this.handleGenreSelect}
           />

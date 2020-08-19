@@ -15,7 +15,7 @@ class Moviestable extends Component {
         <Like
           liked={movies.like}
           onClick={() => {
-            this.props.onLike(movies._id);
+            this.props.onLike(movies);
           }}
         />
       ),
@@ -25,7 +25,7 @@ class Moviestable extends Component {
       content: (movies) => (
         <button
           onClick={() => {
-            this.props.onDelete(movies._id);
+            this.props.onDelete(movies);
           }}
           className="btn btn-danger"
         >
