@@ -4,13 +4,12 @@ import Pagination from "./common/pagination";
 import ListGroup from "./common/listGroup";
 import { Link } from "react-router-dom";
 import { toast } from "react-toastify";
-
 import { paginate } from "../utils/paginate";
-
 import { getMovies, deleteMovie } from "../services/movieService";
 import { getGenres } from "../services/genreService";
 import _ from "lodash";
 import SearchBox from "../components/common/searchbox";
+
 class Movies extends Component {
   state = {
     movies: [],
@@ -51,10 +50,7 @@ class Movies extends Component {
     try {
       await deleteMovie(movie._id);
     } catch (ex) {
-      console.log(ex);
-      toast.error("Error");
-
-      if (ex.repsonse && ex.repsonse.status === 404) {
+      if (ex.response && ex.response.status === 404) {
         toast.error("This Movie has been already deleted");
       }
       this.setState({ movies: originalMovies });
@@ -118,8 +114,7 @@ class Movies extends Component {
   render() {
     const { length: count } = this.state.movies;
     const { pageSize, currentPage, sortColumn } = this.state;
-
-    if (count === 0) return <div>No Movies in Database</div>;
+    const { user } = this.props;
 
     const { totalCount, data: movies } = this.getPagedData();
     return (
@@ -132,7 +127,7 @@ class Movies extends Component {
           />
         </div>
         <div className="col">
-          <Link to="/movies/new">
+         {user &&  <Link to="/movies/new">
             <button
               className="btn btn-primary"
               type="button"
@@ -140,7 +135,7 @@ class Movies extends Component {
             >
               New Movie{" "}
             </button>
-          </Link>
+          </Link> }
 
           <h5>Showing {totalCount} Movies From the Database</h5>
           <SearchBox
